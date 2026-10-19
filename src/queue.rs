@@ -107,6 +107,16 @@ impl SourcesQueueInput {
         sounds.clear();
         len
     }
+
+    /// Removes the most recently added sound from the queue.
+    /// Returns the removed sound, or None if the queue is empty.
+    pub fn pop(&self) -> Option<Box<dyn Source + Send>> {
+        self.next_sounds
+            .lock()
+            .unwrap()
+            .pop_back()
+            .map(|(sound, _)| sound)
+    }
 }
 
 /// The output of the queue. Implements `Source`.
@@ -483,5 +493,25 @@ mod tests {
                 "Sample rate should update to 44100 (keep_alive={keep_alive})"
             );
         }
+    }
+
+    #[test]
+    fn pop_removes_sound() {
+        let (tx, mut rx) = queue::queue(false);
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0]));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![2.0]));
+        let sound: Option<Box<dyn Source + Send>> = tx.pop();
+        assert!(sound.is_some());
+        assert_eq!(sound.unwrap().next(), Some(2.0));
+        assert_eq!(rx.next(), Some(1.0));
+    }
+
+    #[test]
+    fn pop_empty_queue_returns_none() {
+        let (tx, mut rx) = queue::queue(false);
+        assert!(tx.pop().is_none());
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0]));
+        assert_eq!(rx.next(), Some(1.0));
+        assert!(tx.pop().is_none());
     }
 }
