@@ -484,4 +484,30 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn clear_removes_sounds() {
+        let (tx, mut rx) = queue::queue(false);
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0]));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![2.0]));
+        let cleared = tx.clear();
+        assert_eq!(
+            cleared, 2,
+            "After adding 2 sounds to queue, calling clear() removed {cleared} sounds"
+        );
+        assert!(rx.next().is_none(), "Queue not empty after calling clear()");
+    }
+
+    #[test]
+    fn clear_doesn_t_affect_current() {
+        let (tx, mut rx) = queue::queue(false);
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0, 0.5, 0.0]));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![2.0]));
+        assert_eq!(rx.next(), Some(1.0));
+        assert_eq!(tx.clear(), 1);
+        assert_eq!(
+            rx.next(), Some(0.5),
+            "Playback of currently active source in queue interrupted by clear()"
+        );
+    }
 }
