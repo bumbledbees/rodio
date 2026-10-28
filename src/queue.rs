@@ -101,6 +101,9 @@ impl SourcesQueueInput {
     }
 
     /// Removes all the sounds from the queue. Returns the number of sounds cleared.
+    ///
+    /// If the removed sound was enqueued via `append_with_signal`, the associated channel will be
+    /// closed without a signal being sent.
     pub fn clear(&self) -> usize {
         let mut sounds = self.next_sounds.lock().unwrap();
         let len = sounds.len();
@@ -108,9 +111,25 @@ impl SourcesQueueInput {
         len
     }
 
-    /// Removes the most recently added sound from the queue.
-    /// Returns the removed sound, or None if the queue is empty.
-    pub fn pop(&self) -> Option<Box<dyn Source + Send>> {
+    /// Removes the sound at the front of the queue. Returns the removed sound, or None if the
+    /// queue is empty.
+    ///
+    /// If the removed sound was enqueued via `append_with_signal`, the associated channel will be
+    /// closed without a signal being sent.
+    pub fn pop_front(&self) -> Option<Box<dyn Source + Send>> {
+        self.next_sounds
+            .lock()
+            .unwrap()
+            .pop_front()
+            .map(|(sound, _)| sound)
+    }
+
+    /// Removes the most recently added sound from the queue. Returns the removed sound, or None if
+    /// the queue is empty.
+    ///
+    /// If the removed sound was enqueued via `append_with_signal`, the associated channel will be
+    /// closed without a signal being sent.
+    pub fn pop_back(&self) -> Option<Box<dyn Source + Send>> {
         self.next_sounds
             .lock()
             .unwrap()
@@ -500,18 +519,24 @@ mod tests {
         let (tx, mut rx) = queue::queue(false);
         tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0]));
         tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![2.0]));
-        let sound: Option<Box<dyn Source + Send>> = tx.pop();
-        assert!(sound.is_some());
-        assert_eq!(sound.unwrap().next(), Some(2.0));
-        assert_eq!(rx.next(), Some(1.0));
+        tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![3.0]));
+        let sound_back: Option<Box<dyn Source + Send>> = tx.pop_back();
+        assert!(sound_back.is_some());
+        assert_eq!(sound_back.unwrap().next(), Some(3.0));
+        let sound_front: Option<Box<dyn Source + Send>> = tx.pop_front();
+        assert!(sound_front.is_some());
+        assert_eq!(sound_front.unwrap().next(), Some(1.0));
+        assert_eq!(rx.next(), Some(2.0));
     }
 
     #[test]
     fn pop_empty_queue_returns_none() {
         let (tx, mut rx) = queue::queue(false);
-        assert!(tx.pop().is_none());
+        assert!(tx.pop_back().is_none());
+        assert!(tx.pop_front().is_none());
         tx.append(SamplesBuffer::new(nz!(1), nz!(48000), vec![1.0]));
         assert_eq!(rx.next(), Some(1.0));
-        assert!(tx.pop().is_none());
+        assert!(tx.pop_back().is_none());
+        assert!(tx.pop_front().is_none());
     }
 }
