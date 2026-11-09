@@ -179,6 +179,7 @@ divan = "0.1.14"
 inquire = "0.9.3"
 symphonia-adapter-fdk-aac = "0.1"
 clap = { version = "4", features = ["derive"] }
+rand = "0.10"
 
 [[bench]]
 name = "effects"

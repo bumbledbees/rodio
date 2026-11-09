@@ -365,10 +365,12 @@ impl Drop for Player {
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::Ordering;
+    use std::time::Duration;
+    use rand::{Rng, random_range};
 
     use crate::buffer::SamplesBuffer;
     use crate::math::nz;
-    use crate::{Player, Source};
+    use crate::{ChannelCount, Player, Sample, SampleRate, Source};
 
     #[test]
     fn test_immediate_length_changes() {
@@ -466,6 +468,37 @@ mod tests {
 
         for _ in 0..v.len() {
             assert_eq!(queue_rx.next(), src.next());
+        }
+    }
+
+    #[test]
+    #[ignore = "still figuring out how to make this test consistent"]
+    fn try_seek_channel_ordering() {
+        const SAMPLE_RATE: SampleRate = nz!(100);
+        const CHANNELS: ChannelCount = nz!(2);
+        let samples = SamplesBuffer::new(
+            CHANNELS,
+            SAMPLE_RATE,
+            (0..2000i16).map(|s| s as Sample).collect::<Vec<_>>(),
+        );
+        let (player, mut queue_rx) = Player::new();
+        player.append(samples);
+        let handle = std::thread::spawn(move || {
+            for _ in 0..100 {
+                let _ = player.try_seek(Duration::from_secs(random_range(1..19)));
+            }
+        });
+        while queue_rx.next() == Some(0.0) {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        queue_rx.next();
+        while !handle.is_finished() {
+            let sample1 = queue_rx.next();
+            println!("saw {sample1:?}");
+            assert!(sample1.is_some_and(|s| s.trunc() as i32 % 2 == 0));
+            let sample2 = queue_rx.next();
+            println!("saw {sample2:?}");
+            assert!(sample2.is_some_and(|s| s.trunc() as i32 % 2 == 1));
         }
     }
 }
