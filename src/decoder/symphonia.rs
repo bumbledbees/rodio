@@ -16,10 +16,15 @@ use symphonia::{
     },
     default::get_probe,
 };
+pub use symphonia::core::{
+    codecs::CodecInfo,
+    formats::FormatInfo,
+};
 
 use super::{DecoderError, Settings};
 use crate::{
     common::{assert_error_traits, ChannelCount, Sample, SampleRate},
+    decoder::ContainerFormat,
     source::{self, padding_samples_needed},
     Source,
 };
@@ -183,6 +188,35 @@ impl SymphoniaDecoder {
         let mut buffer = SampleBuffer::<Sample>::new(duration, *spec);
         buffer.copy_interleaved_ref(decoded);
         buffer
+    }
+
+    pub(crate) fn container_format(&self) -> ContainerFormat {
+        use symphonia::core::formats::well_known::*;
+        use ContainerFormat::*;
+        let format_info = self.format.format_info();
+        match format_info.format {
+            #[cfg(feature = "symphonia-aiff")]
+            FORMAT_ID_AIFF => AIFF,
+            #[cfg(feature = "symphonia-caf")]
+            FORMAT_ID_CAF => CAF,
+            #[cfg(any(feature = "claxon", feature = "symphonia-flac"))]
+            FORMAT_ID_FLAC => FLAC,
+            #[cfg(feature = "symphonia-isomp4")]
+            FORMAT_ID_ISOMP4 => MP4,
+            #[cfg(feature = "symphonia-mkv")]
+            FORMAT_ID_MKV => MKV,
+            #[cfg(any(feature = "symphonia-mp1", feature = "symphonia-mpa"))]
+            FORMAT_ID_MP1 => MP1,
+            #[cfg(any(feature = "symphonia-mp2", feature = "symphonia-mpa"))]
+            FORMAT_ID_MP2 => MP2,
+            #[cfg(any(feature = "minimp3", feature = "symphonia-mp3", feature = "symphonia-mpa"))]
+            FORMAT_ID_MP3 => MP3,
+            #[cfg(any(feature = "lewton", feature = "symphonia-ogg"))]
+            FORMAT_ID_OGG => Ogg,
+            #[cfg(any(feature = "hound", feature = "symphonia-wav"))]
+            FORMAT_ID_WAVE => WAV,
+            _ => Other(format_info.clone()),
+        }
     }
 }
 

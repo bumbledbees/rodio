@@ -116,6 +116,7 @@ symphonia-caf = ["symphonia/caf"]
 symphonia-isomp4 = ["symphonia/isomp4"]
 symphonia-mkv = ["symphonia/mkv"]
 symphonia-ogg = ["symphonia/ogg"]
+symphonia-wav = ["symphonia/wav"]
 
 # Codecs (decoders) provided by Symphonia
 symphonia-aac = ["symphonia/aac"]
@@ -123,7 +124,6 @@ symphonia-adpcm = ["symphonia/adpcm"]
 symphonia-alac = ["symphonia/alac"]
 symphonia-pcm = ["symphonia/pcm"]
 symphonia-vorbis = ["symphonia/vorbis"]
-symphonia-wav = ["symphonia/wav"]
 
 # libopus adapter for Symphonia
 symphonia-libopus = ["symphonia", "dep:symphonia-adapter-libopus"]
@@ -154,7 +154,7 @@ claxon = { version = "0.4", optional = true }
 hound = { version = "3.5", optional = true }
 lewton = { version = "0.10", optional = true }
 minimp3_fixed = { version = "0.5.4", optional = true }
-symphonia = { version = "0.5.5", optional = true, default-features = false }
+symphonia = { version = "0.6.1", optional = true, default-features = false }
 crossbeam-channel = { version = "0.5.15", optional = true }
 thiserror = "2"
 

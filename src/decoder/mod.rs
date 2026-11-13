@@ -61,6 +61,8 @@ use crate::{
     source::{SeekError, Source},
     Sample,
 };
+#[cfg(feature = "symphonia")]
+pub use crate::decoder::symphonia::{ CodecInfo, FormatInfo };
 
 pub mod builder;
 pub use builder::{DecoderBuilder, Settings};
@@ -104,6 +106,71 @@ pub struct LoopedDecoder<R: Read + Seek> {
 
     /// Configuration settings for the decoder.
     settings: Settings,
+}
+
+pub enum ContainerFormat {
+    #[cfg(feature = "symphonia-aiff")]
+    /// Audio Interchange File Format (.aiff, .aif, .aifc)
+    AIFF,       
+    #[cfg(feature = "symphonia-caf")]
+    /// Core Audio Format (.caf)
+    CAF,        
+    #[cfg(any(feature = "claxon", feature = "symphonia-flac"))]
+    /// Free Lossless Audio Codec (.flac)
+    FLAC,
+    #[cfg(feature = "symphonia-isomp4")]
+    /// ISO Base Media File Format (.m4a, .mp4, .3gp)
+    MP4,
+    #[cfg(feature = "symphonia-mkv")]
+    /// Matroska (.mkv, .webm)
+    MKV,
+    #[cfg(any(feature = "symphonia-mp1", feature = "symphonia-mpa"))]
+    /// MPEG Audio Layer I (.mp1)
+    MP1,        
+    #[cfg(any(feature = "symphonia-mp2", feature = "symphonia-mpa"))]
+    /// MPEG Audio Layer II (.mp2, .mpa, .m2a)
+    MP2,        
+    #[cfg(any(feature = "minimp3", feature = "symphonia-mp3", feature = "symphonia-mpa"))]
+    /// MPEG Audio Layer III (.mp3)
+    MP3,        
+    #[cfg(any(feature = "lewton", feature = "symphonia-ogg"))]
+    /// Ogg (.ogg, .opus, .oga)
+    Ogg,
+    #[cfg(any(feature = "hound", feature = "symphonia-wav"))]
+    /// Waveform Audio File Format (.wav, .wave)
+    WAV,
+    #[cfg(feature = "symphonia")]
+    /// Uncommon container type known to Symphonia
+    Other(FormatInfo),
+    /// Unknown container type
+    Unknown 
+}
+
+pub enum Codec {
+    #[cfg(feature = "symphonia-aac")]
+    AAC,
+    #[cfg(feature = "symphonia-adpcm")]
+    ADPCM,
+    #[cfg(feature = "symphonia-alac")]
+    ALAC,
+    #[cfg(any(feature = "claxon", feature = "symphonia-flac"))]
+    FLAC,
+    #[cfg(any(feature = "symphonia-mp1", feature = "symphonia-mpa"))]
+    MP1,
+    #[cfg(any(feature = "symphonia-mp2", feature = "symphonia-mpa"))]
+    MP2,
+    #[cfg(any(feature = "minimp3", feature = "symphonia-mp3", feature = "symphonia-mpa"))]
+    MP3,
+    #[cfg(feature = "symphonia-libopus")]
+    Opus,
+    #[cfg(any(feature = "hound", feature = "symphonia-pcm"))]
+    PCM,
+    #[cfg(any(feature = "lewton", feature = "symphonia-vorbis"))]
+    Vorbis,
+    #[cfg(feature = "symphonia")]
+    /// Uncommon codec known to Symphonia
+    Other(FormatInfo),
+    Unknown
 }
 
 // Cannot really reduce the size of the VorbisDecoder. There are not any
@@ -558,6 +625,22 @@ impl<R: Read + Seek + Send + Sync + 'static> Decoder<R> {
             .with_data(data)
             .with_mime_type("audio/mp4")
             .build()
+    }
+
+    pub fn container_format(&self) -> ContainerFormat {
+        match &self.0 {
+            #[cfg(all(feature = "hound", not(feature = "symphonia-wav")))]
+            DecoderImpl::Wav(source) => ContainerFormat::WAVE,
+            #[cfg(all(feature = "lewton", not(feature = "symphonia-vorbis")))]
+            DecoderImpl::Vorbis(source) => ContainerFormat::Ogg,
+            #[cfg(all(feature = "claxon", not(feature = "symphonia-flac")))]
+            DecoderImpl::Flac(source) => ContainerFormat::FLAC,
+            #[cfg(all(feature = "minimp3", not(feature = "symphonia-mp3")))]
+            DecoderImpl::Mp3(source) => ContainerFormat::MP3,
+            #[cfg(feature = "symphonia")]
+            DecoderImpl::Symphonia(source, PhantomData) => source.container_format(),
+            DecoderImpl::None(_, _) => unreachable!(),
+        }
     }
 }
 
